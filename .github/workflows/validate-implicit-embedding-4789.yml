@@ -1,0 +1,46 @@
+name: Validate implicit embedding plan on Linux
+
+on:
+  push:
+    branches:
+      - ci/validate-implicit-embedding-4789
+    paths:
+      - .github/workflows/validate-implicit-embedding-4789.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-tests:
+    name: Linux package / ${{ matrix.package }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [config, modelruntime, modelservice]
+    env:
+      SR_TEST_MODE: "true"
+      CI: "true"
+    steps:
+      - name: Check out the exact PR revision
+        uses: actions/checkout@v4
+        with:
+          repository: devinhuang2001/semantic-router
+          ref: 4f4938f58d938dd23df994ff66263caddadf996b
+          persist-credentials: false
+      - name: Verify checked out revision
+        run: test "$(git rev-parse HEAD)" = 4f4938f58d938dd23df994ff66263caddadf996b
+      - name: Set up Go matching the upstream workflow and go.mod
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: src/semantic-router/go.sum
+      - name: Install upstream native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make build-essential pkg-config
+      - name: Execute Linux package tests
+        working-directory: src/semantic-router
+        run: go test -count=1 -timeout=10m -v ./pkg/${{ matrix.package }}
