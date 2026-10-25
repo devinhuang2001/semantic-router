@@ -1,0 +1,37 @@
+name: Validate embedding startup ownership on Linux
+
+on:
+  push:
+    branches:
+      - ci/validate-implicit-embedding-4789
+    paths:
+      - .github/workflows/validate-embedding-startup-4789.yml
+
+permissions:
+  contents: read
+
+jobs:
+  startup-reload:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SR_TEST_MODE: "true"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: devinhuang2001/semantic-router
+          ref: 3a8d7878c369bb1a8de092c744f05f00eb7bddce
+          persist-credentials: false
+      - run: test "$(git rev-parse HEAD)" = 3a8d7878c369bb1a8de092c744f05f00eb7bddce
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: src/semantic-router/go.sum
+      - name: Install upstream native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make build-essential pkg-config
+      - name: Execute actual owned-provider startup and reload warmup tests
+        working-directory: src/semantic-router
+        run: go test -count=1 -timeout=10m -v ./pkg/extproc -run '^(TestStartupWarmupUsesGlobalToolsOwner|TestReloadWarmupUsesNewNamedKnowledgeBaseOwner)$'
